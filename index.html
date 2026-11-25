@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="en" data-brand-context="viewer">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#9d174d">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <title>VisualStream Lab — Streaming Hub</title>
+  <base href="/">
+  <script>try { const n = localStorage.getItem("cached_site_name") || "VisualStream Lab"; document.title = `${n === "Malkeet Live TV" ? "VisualStream Lab" : n} — Streaming Hub` } catch (error) { console.warn("Could not read cached website name.", error) }</script>
+  <style>
+    html:not([data-brand-ready]) body {
+      visibility: hidden
+    }
+  </style>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="ui-dialog.css">
+  <link rel="stylesheet" href="legal.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+</head>
+
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="/" data-view="home"><span class="brand-mark" data-brand-logo><span
+            data-brand-logo-fallback>▶</span><img data-brand-logo-image alt="" hidden></span><span class="brand-name"
+          id="site-brand-name" data-brand-name>VisualStream Lab</span></a>
+      <button class="sidebar-close" id="sidebar-close" type="button" aria-label="Close sidebar">×</button>
+      <nav class="nav-list" aria-label="Main navigation">
+        <button class="nav-item active" data-view="home"><span class="nav-ico">▣</span><span>Live TV</span></button>
+        <button class="nav-item" data-view="youtube"><span class="nav-ico">▶</span><span>YouTube</span></button>
+        <button class="nav-item" id="nav-live-categories" data-navigation-key="live-categories" type="button"
+          aria-controls="sidebar-categories" aria-expanded="false"><span class="nav-ico">▣</span><span
+            data-navigation-label>Live TV Categories</span><span class="category-chevron"
+            aria-hidden="true">⌄</span></button>
+        <div class="sidebar-category-list" id="sidebar-categories" aria-label="Channel categories" hidden></div>
+        <button class="nav-item" data-view="movies"><span class="nav-ico">▤</span><span>Movies</span></button>
+        <button class="nav-item" data-view="music"><span class="nav-ico">♫</span><span>Music</span></button>
+        <button class="nav-item" data-view="serials"><span class="nav-ico">▥</span><span>Serials</span></button>
+        <button class="nav-item" data-view="reels" data-navigation-key="reels"><span class="nav-ico">▯</span><span
+            data-navigation-label>Shorts &amp; Clips</span></button>
+        <button class="nav-item" data-view="sports"><span class="nav-ico">⚽</span><span>Sports</span></button>
+        <button class="nav-item" data-view="hidden-channels"><span class="nav-ico">◉</span><span>Hide
+            Channel</span></button>
+        <button class="nav-item" data-view="notifications"><span class="nav-ico">♢</span><span>Notifications</span><i
+            class="notification-nav-count" id="sidebar-notification-count" hidden>0</i></button>
+        <button class="nav-item" data-view="favorites"><span class="nav-ico">♥</span><span>Favorites</span></button>
+        <button class="nav-item" data-view="history"><span class="nav-ico">◷</span><span>Recently
+            Watched</span></button>
+        <button class="nav-item" data-view="settings"><span class="nav-ico">⚙</span><span>Settings</span></button>
+        <button class="nav-item" data-view="contact"><span class="nav-ico">✉</span><span>Contact Us</span></button>
+      </nav>
+      <div id="profile-subscription-summary" class="subscription-summary" aria-live="polite">
+        <span class="subscription-badge" id="profile-subscription-badge">Free</span>
+        <b id="profile-subscription-plan">Free plan</b>
+        <small id="profile-subscription-expiry">Sign in to view subscription details.</small>
+      </div>
+      <button class="btn btn-gold full" type="button" id="free-plan-action">Start 30-day Free Plan</button>
+      <div class="sidebar-bottom">
+        <div class="premium-card">
+          <div class="crown">♛</div><b>Upgrade to Premium</b>
+          <p>Enjoy an ad-free experience with more features.</p><button class="btn btn-gold" id="premium-cta">Upgrade
+            now</button>
+        </div>
+      </div>
+    </aside>
+    <div class="sidebar-category-channel-dropdown" id="sidebar-category-channel-dropdown" role="region"
+      aria-label="Channels in selected category" aria-live="polite" hidden></div>
+
+    <main class="main-area">
+      <header class="topbar">
+        <button class="icon-btn mobile-menu" id="menu-toggle" aria-label="Open menu">☰</button>
+        <div class="search-area" id="search-area">
+          <label class="search-box"><span>⌕</span><input id="global-search" role="combobox" aria-haspopup="listbox"
+              aria-autocomplete="list" aria-controls="global-search-results" aria-expanded="false"
+              placeholder="Search channels, movies..." autocomplete="off"></label>
+          <div class="search-results" id="global-search-results" role="listbox" aria-label="Search results" hidden>
+          </div>
+        </div>
+        <div class="youtube-header-search" id="youtube-header-search" hidden>
+          <form class="youtube-search-form" id="youtube-search-form" role="search">
+            <label class="youtube-search-box" for="youtube-search-input">
+              <span aria-hidden="true">⌕</span>
+              <input id="youtube-search-input" type="search" placeholder="Search YouTube videos..." autocomplete="off"
+                required>
+            </label>
+            <button class="btn btn-primary" type="submit">Search</button>
+          </form>
+        </div>
+        <div class="top-actions"><button class="icon-btn" id="theme-toggle" title="Toggle dark / light mode"
+            aria-label="Toggle theme">☼</button><button class="icon-btn notification-trigger" id="notification-trigger"
+            type="button" data-view="notifications" aria-label="Notifications" aria-controls="view-notifications">
+            <svg class="notification-bell-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"></path>
+            </svg><i class="notification-nav-count" id="header-notification-count" hidden>0</i></button>
+          <div class="profile-menu" id="profile-menu"><button class="icon-btn profile-trigger" id="profile-toggle"
+              type="button" aria-haspopup="menu" aria-label="Open user profile" aria-controls="profile-dropdown"
+              aria-expanded="false"><span id="profile-avatar">♙</span></button>
+            <div class="profile-dropdown" id="profile-dropdown" role="menu" aria-label="User profile" hidden>
+              <div class="profile-dropdown-user"><b id="profile-display-name">Guest</b><small
+                  id="profile-display-email"></small></div><button type="button" role="menuitem"
+                data-profile-action="account">Account details</button><button type="button" role="menuitem"
+                data-profile-action="notifications">Notifications <i id="notification-count"
+                  hidden>0</i></button><button type="button" role="menuitem" data-profile-action="plans">Subscription
+                plans</button>
+              <div class="profile-menu-divider"></div><button type="button" role="menuitem" data-profile-action="auth"
+                id="profile-auth-action">Sign in / Create account</button><button type="button" role="menuitem"
+                data-profile-action="logout" id="profile-signout-action" hidden>Sign out</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section class="view active" id="view-home">
+        <header class="viewer-home-heading" id="viewer-home-heading" hidden>
+          <p id="viewer-home-description"></p>
+        </header>
+        <div class="dashboard-player-grid">
+          <div class="player-column">
+            <div class="video-frame-slot" id="video-frame-slot">
+              <div class="video-frame" id="video-frame">
+                <div class="player-video-effects" id="player-video-effects">
+                  <video id="video" playsinline autoplay preload="metadata"></video>
+                </div>
+                <div class="signal-fallback" id="signal-fallback" hidden role="status" aria-live="polite"
+                  aria-label="No signal">
+                  <span>NO SIGNAL</span>
+                </div>
+                <div class="youtube-player" id="youtube-player" hidden>
+                  <div id="youtube-player-target"></div>
+                </div>
+                <div class="youtube-player-loading" id="youtube-player-loading" hidden>Loading YouTube…</div>
+                <div class="player-placeholder" id="player-placeholder">
+                  <div class="placeholder-orbit">▶</div>
+                  <b id="player-placeholder-title">READY TO WATCH</b>
+                  <span id="player-placeholder-message"></span>
+                </div>
+                <div class="player-overlay" id="player-overlay">
+                  <div class="play-symbol">▶</div>
+                  <button class="player-autoplay-play" id="player-autoplay-play" type="button" hidden>Play with
+                    sound</button>
+                </div>
+                <div class="player-error" id="player-error" hidden></div>
+                <div class="player-top-label">
+                  <div class="player-top-left"><button class="fullscreen-channel-toggle" id="fullscreen-channel-toggle"
+                      type="button" aria-controls="fullscreen-channel-strip" aria-expanded="false">☰</button><span
+                      id="player-channel-label">Select a channel</span></div><span id="network-status">Ready</span>
+                </div>
+                <div class="fullscreen-channel-strip" id="fullscreen-channel-strip" aria-label="Channel list" hidden>
+                </div>
+                <div class="player-settings-panel" id="player-settings-panel" aria-label="Player settings" hidden>
+                  <b>Playback settings</b><label id="stream-source-setting" hidden>Quality / Source<select
+                      id="stream-source-select" disabled>
+                      <option value="0">Source 1</option>
+                    </select></label><label>Aspect ratio<select id="aspect-ratio-select"
+                      aria-label="Video aspect ratio">
+                      <option value="fit">Fit</option>
+                      <option value="fill">Fill</option>
+                      <option value="16:9">16:9</option>
+                      <option value="4:3">4:3</option>
+                    </select></label><label>Playback speed<select id="playback-speed">
+                      <option value="0.5">0.5×</option>
+                      <option value="1" selected>1×</option>
+                      <option value="1.5">1.5×</option>
+                      <option value="2">2×</option>
+                    </select></label><label>Audio language<select id="audio-track-select" aria-label="Audio language"
+                      disabled>
+                      <option value="-1">Default</option>
+                    </select></label><label>Subtitles<select id="subtitle-select" aria-label="Subtitle track">
+                      <option value="-1">Off</option>
+                    </select></label><label>Caption size <span id="caption-size-value">100%</span><input
+                      id="caption-size" type="range" min="75" max="150" step="5" value="100"
+                      aria-label="Subtitle text size"></label><label>Caption color<input id="caption-color" type="color"
+                      value="#ffffff" aria-label="Subtitle text color"></label>
+                  <label>Color preset<select id="liveColorPreset" aria-label="Live TV color preset">
+                      <option value="default" selected>Default</option>
+                      <option value="cinematic">Cinematic / 8K Look</option>
+                      <option value="vivid">Vivid</option>
+                      <option value="warm">Warm</option>
+                      <option value="cool">Cool</option>
+                    </select></label>
+                  <details class="player-setting-group" open>
+                    <summary>Color correction</summary>
+                    <div class="player-color-grid">
+                      <label>Brightness <output id="brightness-value">100%</output><input id="video-brightness"
+                          type="range" min="50" max="150" step="5" value="100" aria-label="Video brightness"></label>
+                      <label>Contrast <output id="contrast-value">100%</output><input id="video-contrast" type="range"
+                          min="50" max="150" step="5" value="100" aria-label="Video contrast"></label>
+                      <label>Saturation <output id="saturation-value">100%</output><input id="video-saturation"
+                          type="range" min="0" max="200" step="5" value="100" aria-label="Video saturation"></label>
+                      <label>Hue <output id="hue-value">0°</output><input id="video-hue" type="range" min="-180"
+                          max="180" step="5" value="0" aria-label="Hue rotation"></label>
+                      <label>Grayscale <output id="grayscale-value">0%</output><input id="video-grayscale" type="range"
+                          min="0" max="100" step="5" value="0" aria-label="Grayscale"></label>
+                      <label>Sepia <output id="sepia-value">0%</output><input id="video-sepia" type="range" min="0"
+                          max="100" step="5" value="0" aria-label="Sepia"></label>
+                      <label>Blur <output id="blur-value">0px</output><input id="video-blur" type="range" min="0"
+                          max="5" step="0.5" value="0" aria-label="Blur"></label>
+                      <label>Sharpness <output id="sharpness-value">0</output><input id="video-sharpness" type="range"
+                          min="0" max="1.5" step="0.1" value="0" aria-label="Sharpness"></label>
+                      <label>Exposure <output id="exposure-value">0 EV</output><input id="video-exposure" type="range"
+                          min="-2" max="2" step="0.1" value="0" aria-label="Exposure"></label>
+                      <label>Temperature <output id="temperature-value">0</output><input id="video-temperature"
+                          type="range" min="-100" max="100" step="5" value="0" aria-label="Color temperature"></label>
+                      <label>Tint <output id="tint-value">0</output><input id="video-tint" type="range" min="-100"
+                          max="100" step="5" value="0" aria-label="Color tint"></label>
+                      <label>Highlights <output id="highlights-value">0</output><input id="video-highlights"
+                          type="range" min="-100" max="100" step="5" value="0" aria-label="Highlights"></label>
+                      <label>Shadows <output id="shadows-value">0</output><input id="video-shadows" type="range"
+                          min="-100" max="100" step="5" value="0" aria-label="Shadows"></label>
+                      <label>Gamma <output id="gamma-value">100%</output><input id="video-gamma" type="range" min="50"
+                          max="200" step="5" value="100" aria-label="Gamma"></label>
+                    </div>
+                    <button class="player-color-reset" id="color-correction-reset" type="button">Reset picture</button>
+                  </details>
+                </div>
+                <div class="player-bottom-controls">
+                  <div class="player-progress-row" id="player-progress-row" hidden>
+                    <span id="progress-current">0:00</span><input id="player-progress" type="range" min="0" max="1000"
+                      value="0" aria-label="Video progress" disabled><span id="progress-duration">0:00</span>
+                  </div>
+                  <button id="player-play" aria-label="Play or pause">▶</button><span id="player-time"
+                    class="player-live-indicator">LIVE</span><button id="player-pip" type="button"
+                    aria-label="Picture in picture" title="Picture in picture" hidden>▣</button><button id="player-prev"
+                    aria-label="Previous channel">|◀</button><button id="player-next"
+                    aria-label="Next channel">▶|</button><button id="player-mute" aria-label="Mute">◖))</button><label
+                    class="volume-wrap"><input id="player-volume" type="range" min="0" max="1" step="0.05" value="0.8"
+                      aria-label="Volume"></label>
+                  <div class="player-quality-control"><button class="hd-pill" id="player-hd" type="button"
+                      title="Video quality: Auto" aria-label="Video quality: Auto" aria-controls="player-quality-menu"
+                      aria-expanded="false">HD</button>
+                    <div class="player-quality-menu" id="player-quality-menu" hidden><select id="quality-select"
+                        aria-label="Video quality">
+                        <option value="-1">Auto</option>
+                      </select></div>
+                  </div><button class="player-favorite" id="favorite-current" type="button" title="Add to favorites"
+                    aria-label="Add to favorites" aria-pressed="false">☆</button><button id="player-settings"
+                    type="button" aria-label="Player settings" aria-controls="player-settings-panel"
+                    aria-expanded="false">⚙</button><button class="player-panel-toggle" id="channel-panel-toggle"
+                    type="button" aria-controls="player-channel-panel" aria-expanded="true"
+                    aria-label="Toggle channel list">☷</button><button id="player-fullscreen"
+                    aria-label="Fullscreen">⛶</button>
+                </div>
+              </div>
+            </div>
+            <div class="channel-strip" id="channel-strip" aria-label="Channel quick switcher"></div>
+          </div>
+          <aside class="youtube-playlist" id="youtube-playlist" aria-label="YouTube playlist" hidden>
+            <div class="youtube-recommendations-heading">
+              <h2>Up next</h2>
+              <span class="muted">Select a video</span>
+            </div>
+            <div class="youtube-queue-list" id="youtube-queue-list" aria-label="YouTube autoplay queue"></div>
+          </aside>
+          <section class="youtube-recommendations" id="youtube-recommendations"
+            aria-labelledby="youtube-recommendations-heading" hidden>
+            <div class="youtube-recommendations-heading">
+              <h2 id="youtube-recommendations-heading">Recommended videos</h2>
+              <span class="muted" id="youtube-search-status" role="status" aria-live="polite">Loading videos…</span>
+            </div>
+            <div class="youtube-results-grid" id="youtube-results-grid" aria-label="YouTube recommendations"></div>
+          </section>
+          <aside class="channel-panel" id="player-channel-panel">
+            <div class="channel-tabs"><button class="selected" data-filter="all">All Channels</button><button
+                data-filter="favorites">Favorites</button><button data-filter="categories">Categories</button></div>
+            <div class="panel-head"><b>Channels <small id="channel-count">0</small><span class="channel-category-label"
+                  id="channel-category-label">All Channels</span><span class="channel-position" id="channel-position">0
+                  / 0</span></b>
+              <div class="channel-order-controls"><input id="channel-search" placeholder="Search channels..."></div>
+            </div>
+            <div class="channel-list-nav">
+              <div class="channel-list" id="channel-list">
+                <div class="empty-state">Connect Supabase and publish your channel playlist.</div>
+              </div>
+            </div>
+            <input id="channel-slider" type="range" min="0" max="0" value="0" aria-label="Slide to change channel"
+              hidden>
+          </aside>
+        </div>
+
+        <section class="home-channel-slider" aria-labelledby="home-channel-slider-title" hidden>
+          <div class="section-heading home-channel-slider-heading">
+            <h2 id="home-channel-slider-title">Browse Channels</h2>
+          </div>
+          <div class="channel-strip home-channel-strip" id="home-channel-strip" aria-label="Browse channels"></div>
+        </section>
+        <section class="content-section">
+          <div class="section-heading">
+            <h2>★ Recommended for You</h2>
+          </div>
+          <div class="channel-grid compact" id="home-channels">
+            <div class="empty-state">Your published channels will appear here.</div>
+          </div>
+        </section>
+        <section class="content-section">
+          <div class="section-heading">
+            <h2>Recently Watched</h2>
+          </div>
+          <div class="channel-grid" id="home-history-grid"></div>
+        </section>
+        <section class="content-section">
+          <div class="section-heading">
+            <h2>Continue Watching</h2>
+          </div>
+          <div class="channel-grid media-grid" id="home-continue-grid"></div>
+        </section>
+      </section>
+
+      <section class="view" id="view-hidden-channels">
+        <section class="content-section">
+          <div class="section-heading">
+            <h3>Hidden channels</h3>
+          </div>
+          <div id="hidden-channel-list" class="hidden-channel-list"></div>
+        </section>
+      </section>
+      <section class="view" id="view-movies">
+        <section class="media-player-panel" id="movies-player" aria-label="Movie player" tabindex="-1" hidden>
+          <div class="media-player-heading">
+            <div class="movie-player-title-group">
+              <h2 id="movies-player-title" title="Select a movie">Select a movie</h2>
+              <span class="media-player-type">Movie</span>
+            </div>
+            <div class="movie-player-heading-actions media-player-heading-actions">
+              <button class="media-player-close" type="button" data-close-media-player="movie"
+                aria-label="Close movie player" title="Close Player">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="m6 6 12 12M18 6 6 18"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <video id="movie-media-player" playsinline preload="metadata"></video>
+          <select id="colorPreset" aria-label="Movie color preset" title="Color preset">
+            <option value="default" selected>Default</option>
+            <option value="cinematic">Cinematic / 8K Look</option>
+            <option value="vivid">Vivid</option>
+            <option value="warm">Warm</option>
+            <option value="cool">Cool</option>
+          </select>
+          <div class="media-youtube-player" id="movie-youtube-player" hidden></div>
+          <p class="media-player-status" id="movies-player-status" role="status" aria-live="polite"></p>
+        </section>
+        <div class="section-heading">
+          <h2>Movies</h2>
+        </div>
+        <div class="media-status muted" id="movies-status" role="status"></div>
+        <label class="media-catalog-search">Search movies
+          <input id="movies-search" type="search" data-media-search="movie" placeholder="Search titles or folders"
+            autocomplete="off">
+        </label>
+        <label class="movie-letter-filter">Title letter
+          <select id="movies-letter-select" aria-label="Filter movies by title letter">
+            <option value="all">All letters</option>
+          </select>
+        </label>
+        <div class="media-category-filters" id="movies-category-filters" role="group" aria-label="Movie categories">
+        </div>
+        <div class="channel-grid media-grid" id="movies-grid"></div>
+        <nav class="media-pagination" id="movies-pagination" aria-label="Movie pages" hidden></nav>
+      </section>
+      <section class="view" id="view-music">
+        <section class="media-player-panel" id="music-player" aria-label="Music player" tabindex="-1" hidden>
+          <div class="media-player-heading">
+            <h2 id="music-player-title">Select a track</h2>
+            <div class="movie-player-heading-actions media-player-heading-actions">
+              <button class="media-player-close" type="button" data-close-media-player="music"
+                aria-label="Close music player" title="Close Player">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="m6 6 12 12M18 6 6 18"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="media-player-art" aria-hidden="true">♫</div>
+          <audio id="music-media-player" preload="metadata"></audio>
+          <div class="media-youtube-player" id="music-youtube-player" hidden></div>
+          <p class="media-player-status" id="music-player-status" role="status" aria-live="polite"></p>
+        </section>
+        <div class="section-heading">
+          <h2>Music</h2>
+        </div>
+        <div class="media-status muted" id="music-status" role="status"></div>
+        <div class="music-discovery-toolbar" aria-label="Music discovery controls">
+          <label class="media-artist-search">Artist search
+            <input id="music-artist-search" type="search" placeholder="Search artists" autocomplete="off">
+          </label>
+          <button type="button" class="music-mode-button" id="music-global-shuffle" aria-pressed="false">Global
+            Shuffle</button>
+          <button type="button" class="music-mode-button" id="music-album-playback" aria-pressed="true">Album
+            Playback</button>
+        </div>
+        <nav class="music-breadcrumb" id="music-breadcrumb" aria-label="Music discovery path"></nav>
+        <label class="media-artist-select">Select Artist
+          <select id="music-artist-select" data-media-artist-filter="music" aria-label="Filter music by artist">
+            <option value="all">All artists</option>
+          </select>
+        </label>
+        <label class="media-catalog-search">Search music
+          <input id="music-search" type="search" data-media-search="music"
+            placeholder="Search songs, artists, or folders" autocomplete="off">
+        </label>
+        <div class="media-category-filters" id="music-category-filters" role="group" aria-label="Music categories">
+        </div>
+        <div class="channel-grid media-grid" id="music-grid"></div>
+        <nav class="media-pagination" id="music-pagination" aria-label="Music pages" hidden></nav>
+        <section class="music-artists-section" aria-labelledby="music-artists-heading">
+          <div class="section-heading">
+            <h3 id="music-artists-heading">Browse by Artist</h3>
+          </div>
+          <div class="channel-grid music-artist-grid" id="music-artists-grid" aria-live="polite"></div>
+        </section>
+      </section>
+      <section class="view" id="view-serials">
+        <section class="media-player-panel" id="serials-player" data-media-mode="wide" aria-label="Serial player"
+          tabindex="-1" hidden>
+          <div class="media-player-heading">
+            <h2 id="serials-player-title">Select a serial</h2>
+            <button class="media-player-close" type="button" data-close-media-player="serial"
+              aria-label="Close serial player">×</button>
+          </div>
+          <video id="serial-media-player" playsinline preload="metadata"></video>
+          <div class="media-youtube-player" id="serial-youtube-player" hidden></div>
+          <p class="media-player-status" id="serials-player-status" role="status" aria-live="polite"></p>
+        </section>
+        <div class="section-heading">
+          <h2>Serials &amp; Web Series</h2>
+        </div>
+        <div class="media-status muted" id="serials-status" role="status"></div>
+        <label class="media-catalog-search">Search serials
+          <input id="serials-search" type="search" data-media-search="serial" placeholder="Search titles or folders"
+            autocomplete="off">
+        </label>
+        <div class="media-category-filters" id="serials-category-filters" role="group" aria-label="Serial categories">
+        </div>
+        <div class="channel-grid media-grid" id="serials-grid"></div>
+        <nav class="media-pagination" id="serials-pagination" aria-label="Serial pages" hidden></nav>
+      </section>
+      <section class="view" id="view-reels">
+        <section class="media-player-panel reel-player-panel" id="reels-player" data-media-mode="vertical"
+          aria-label="Vertical reels player" tabindex="-1" hidden>
+          <div class="media-player-heading">
+            <h2 id="reels-player-title">Select a reel</h2>
+            <button class="media-player-close" type="button" data-close-media-player="reel"
+              aria-label="Close reels player">×</button>
+          </div>
+          <video id="reel-media-player" playsinline preload="metadata"></video>
+          <div class="media-youtube-player" id="reel-youtube-player" hidden></div>
+          <p class="media-player-status" id="reels-player-status" role="status" aria-live="polite"></p>
+        </section>
+        <div class="section-heading">
+          <h2>Shorts &amp; Clips</h2>
+        </div>
+        <div class="media-status muted" id="reels-status" role="status"></div>
+        <div class="media-category-filters" id="reels-category-filters" role="group" aria-label="Reel categories"></div>
+        <div class="channel-grid media-grid reels-grid" id="reels-grid"></div>
+      </section>
+      <section class="view" id="view-sports">
+        <div class="section-heading">
+          <h2>Sports Channels</h2>
+        </div>
+        <div class="channel-grid" id="sports-channels"></div>
+      </section>
+      <section class="view" id="view-favorites">
+        <div class="section-heading">
+          <h2>Favorites</h2>
+        </div>
+        <div class="channel-grid" id="favorite-grid"></div>
+        <h3 class="saved-media-heading">Favorite media</h3>
+        <div class="channel-grid media-grid" id="media-favorites-grid"></div>
+      </section>
+      <section class="view" id="view-history">
+        <div class="section-heading">
+          <h2>Recently Watched</h2>
+          <button class="text-btn clear-history-btn" id="clear-history" type="button" hidden>Clear history</button>
+        </div>
+        <div class="channel-grid" id="history-grid"></div>
+        <h3 class="saved-media-heading">Continue Watching</h3>
+        <div class="channel-grid media-grid" id="media-continue-grid"></div>
+      </section>
+      <section class="view" id="view-notifications">
+        <div class="section-heading">
+          <h2>Notifications</h2><button class="text-btn" id="refresh-notifications" type="button">↻ Refresh</button>
+        </div>
+        <div class="notification-toolbar" id="notification-toolbar" hidden>
+          <div class="notification-filter-group" role="group" aria-label="Filter notifications">
+            <button type="button" data-notification-filter="all" aria-pressed="true">All</button>
+            <button type="button" data-notification-filter="offers" aria-pressed="false">Offers</button>
+          </div>
+          <div class="notification-actions">
+            <button class="btn btn-subtle" id="notification-sound-toggle" type="button" aria-pressed="false">Sound:
+              Off</button>
+            <button class="btn btn-subtle" id="notification-mark-all" type="button">Mark All as Read</button>
+            <button class="btn btn-subtle" id="notification-clear-all" type="button">Clear All</button>
+          </div>
+        </div>
+        <p class="notification-action-status" id="notification-action-status" role="status" aria-live="polite" hidden>
+        </p>
+        <div id="notification-list" class="notification-list">
+          <div class="empty-state">Sign in to view your account notifications.</div>
+        </div>
+      </section>
+      <section class="view" id="view-plans">
+        <div class="section-heading">
+          <h2>Subscription Plans</h2><span class="muted" id="subscription-plan-status">Secure payments by
+            Razorpay</span>
+        </div>
+        <section class="subscription-renewal-setup" id="subscription-renewal-setup" aria-live="polite" hidden></section>
+        <div class="channel-grid" id="subscription-plan-list">
+          <div class="empty-state">Loading available plans...</div>
+        </div>
+      </section>
+      <section class="view" id="view-settings">
+        <div class="section-heading">
+          <h2>Settings</h2>
+        </div>
+        <div class="settings-grid">
+          <div class="settings-card">
+            <h3>Account</h3>
+            <p id="settings-account-status">You are browsing as a guest.</p><button class="btn btn-primary"
+              id="settings-login">Login / Sign up</button><button class="btn btn-subtle" id="open-account-details"
+              type="button">Account details</button>
+            <div class="subscription-summary" id="settings-subscription-summary" aria-live="polite">
+              <span class="subscription-badge" id="settings-subscription-badge">Free</span>
+              <b id="settings-subscription-plan">Free plan</b>
+              <small id="settings-subscription-expiry">Sign in to view subscription details.</small>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="view" id="view-contact">
+        <div class="section-heading">
+          <h2>Contact Admin</h2>
+        </div>
+        <section class="settings-card contact-admin-card" aria-labelledby="contact-admin-title">
+          <h3 id="contact-admin-title">Send a message</h3>
+          <p>Send a question or inquiry to the site administrator.</p>
+          <form id="contact-admin-form">
+            <label class="field-label">Name<input id="contact-admin-name" maxlength="120" autocomplete="name"
+                required></label>
+            <label class="field-label">Email (optional)<input id="contact-admin-email" type="email" maxlength="254"
+                autocomplete="email"></label>
+            <label class="field-label">Message<textarea id="contact-admin-message" rows="5" maxlength="5000"
+                required></textarea></label>
+            <button class="btn btn-primary" id="contact-admin-submit" type="submit">Send message</button>
+            <p class="form-message" id="contact-admin-status" role="status" aria-live="polite"></p>
+          </form>
+          <div class="contact-admin-history" id="contact-admin-history" aria-live="polite"></div>
+        </section>
+      </section>
+      <footer class="legal-footer legal-footer--viewer">
+        <p>&copy; 2026 VisualStream Lab</p>
+        <nav class="legal-footer-links" aria-label="Legal and compliance">
+          <a href="/terms.html">Terms</a>
+          <a href="/privacy.html">Privacy</a>
+          <a href="/dmca.html">DMCA</a>
+          <a href="/disclaimer.html">Disclaimer</a>
+        </nav>
+      </footer>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="auth-modal" hidden>
+    <div class="modal"><button class="modal-close" data-close="auth-modal" aria-label="Close login">×</button>
+      <div class="modal-tabs"><button class="selected" data-auth-tab="user-login">User login</button><button
+          data-auth-tab="user-signup">User signup</button></div>
+      <form id="auth-form">
+        <p class="eyebrow auth-site-name" id="auth-site-name" data-brand-name>VisualStream Lab</p>
+        <h2 id="auth-title">Welcome back</h2>
+        <label class="field-label"><span id="auth-identifier-label">Email or Mobile Number</span><input id="auth-email"
+            type="text" required autocomplete="username"></label>
+        <label class="field-label">Password<span class="password-input-wrap"><input id="auth-password" type="password"
+              required minlength="6" autocomplete="current-password"><button type="button" id="toggle-password"
+              class="password-eye" aria-label="Show password" aria-pressed="false">◉</button></span></label>
+        <div id="signup-fields" hidden>
+          <label class="field-label" id="name-wrap">Full name<input id="auth-name" autocomplete="name" required
+              disabled></label>
+          <label class="field-label" id="mobile-wrap">Mobile number<input id="auth-mobile" type="tel"
+              inputmode="numeric" autocomplete="tel" required disabled></label>
+          <label class="check-line" id="signup-terms-wrap"><input id="signup-terms" type="checkbox" required disabled>
+            I agree to the <a href="/terms.html" target="_blank" rel="noopener noreferrer">Terms of Service</a> and
+            acknowledge the <a href="/privacy.html" target="_blank" rel="noopener noreferrer">Privacy
+              Policy</a>.</label>
+          <label class="check-line free-plan-choice"><input id="signup-free-plan" type="checkbox" checked disabled>
+            Start the 30-day Free Plan (Live TV and Movies only)</label>
+        </div>
+        <button class="btn btn-primary full" type="submit" id="auth-submit">Login</button>
+        <p class="form-message" id="auth-message"></p>
+        <button type="button" class="text-btn" id="forgot-password">Forgot password?</button>
+      </form>
+    </div>
+  </div>
+  <div class="modal-backdrop" id="account-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="account-modal-title"><button class="modal-close"
+        type="button" data-close="account-modal" aria-label="Close account details">×</button>
+      <h2 id="account-modal-title">Account details</h2>
+      <div class="settings-card">
+        <p><b>Name:</b> <span id="account-name">—</span></p>
+        <p><b>Email:</b> <span id="account-email">Not signed in</span></p>
+        <p><b>Status:</b> <span id="account-status"> guest</span></p>
+        <div class="subscription-summary" id="account-subscription-summary" aria-live="polite">
+          <span class="subscription-badge" id="account-subscription-badge">Free</span>
+          <b id="account-subscription-plan">Free plan</b>
+          <small id="account-subscription-expiry">Sign in to view subscription details.</small>
+        </div>
+      </div>
+      <p class="muted" id="account-edit-guest-note">Sign in to edit your account details.</p>
+      <form id="account-edit-form" class="account-edit-form" hidden>
+        <label class="field-label">Full name<input id="account-edit-name" required maxlength="120"
+            autocomplete="name"></label>
+        <label class="field-label">Email address<input id="account-edit-email" type="email" required
+            autocomplete="email"></label>
+        <label class="field-label">Mobile number<input id="account-edit-mobile" type="tel" inputmode="tel"
+            maxlength="32" autocomplete="tel"></label>
+        <label class="field-label">New password (optional)<input id="account-edit-password" type="password"
+            autocomplete="new-password" minlength="6"></label>
+        <label class="field-label">Confirm new password<input id="account-edit-password-confirm" type="password"
+            autocomplete="new-password" minlength="6"></label>
+        <button class="btn btn-primary full" id="account-edit-save" type="submit">Save changes</button>
+        <p class="form-message" id="account-edit-message" role="status" aria-live="polite"></p>
+      </form>
+      <button class="btn btn-primary full" id="account-login" type="button">Sign in</button>
+    </div>
+  </div>
+  <div class="modal-backdrop" id="my-channels-modal" hidden>
+    <div class="modal my-channels-modal" role="dialog" aria-modal="true" aria-labelledby="my-channels-title"><button
+        class="modal-close" type="button" data-close="my-channels-modal" aria-label="Close My Channels">×</button>
+      <h2 id="my-channels-title">My Channels</h2>
+      <p class="muted">Channels you add here belong to your account. Hide them from your channel list at any time; they
+        are never deleted here.</p>
+      <form id="my-channel-form" class="my-channel-form"><label class="field-label">Channel name<input
+            id="my-channel-name" required maxlength="120" autocomplete="off"></label><label class="field-label">Stream
+          URL<input id="my-channel-url" type="url" required autocomplete="url"
+            placeholder="https://example.com/stream.m3u8"></label>
+        <div class="my-channel-form-row"><label class="field-label">Category<input id="my-channel-category"
+              maxlength="80" placeholder="General"></label><label class="field-label">Logo URL (optional)<input
+              id="my-channel-logo" type="url" autocomplete="url"></label></div><button class="btn btn-primary"
+          type="submit" id="my-channel-submit">Add channel</button>
+        <p class="form-message" id="my-channel-message" role="status" aria-live="polite"></p>
+      </form>
+      <div class="my-channel-list" id="my-channel-list">
+        <div class="empty-state">Loading your channels...</div>
+      </div>
+    </div>
+  </div>
+  <div class="splash-screen" id="splash-screen">
+    <div class="splash-logo">▶</div>
+    <h1 id="splash-brand" data-brand-name>VisualStream Lab</h1>
+    <p id="splash-tagline">Your entertainment, one destination.</p>
+    <div class="splash-loader"></div>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="notification-toast" id="notification-toast" role="status" aria-live="polite" hidden>
+    <span id="notification-toast-message"></span>
+    <button class="btn btn-subtle" id="notification-toast-view" type="button">View</button>
+    <button class="notification-toast-close" id="notification-toast-close" type="button"
+      aria-label="Dismiss notification toast">×</button>
+  </div>
+  <svg class="player-filter-definitions" aria-hidden="true" focusable="false">
+    <defs>
+      <filter id="player-advanced-filter" x="-10%" y="-10%" width="120%" height="120%"
+        color-interpolation-filters="sRGB">
+        <feColorMatrix id="player-color-matrix" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0"
+          result="graded"></feColorMatrix>
+        <feComponentTransfer in="graded" result="tone">
+          <feFuncR id="player-curve-red" type="table" tableValues="0 1"></feFuncR>
+          <feFuncG id="player-curve-green" type="table" tableValues="0 1"></feFuncG>
+          <feFuncB id="player-curve-blue" type="table" tableValues="0 1"></feFuncB>
+        </feComponentTransfer>
+        <feConvolveMatrix id="player-sharpness-filter" in="tone" order="3" kernelMatrix="0 0 0 0 1 0 0 0 0"
+          preserveAlpha="true" edgeMode="duplicate"></feConvolveMatrix>
+      </filter>
+    </defs>
+  </svg>
+  <script src="ui-dialog.js"></script>
+  <script src="config.js"></script>
+  <script src="js/siteBranding.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+
+</html>
